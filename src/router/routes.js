@@ -1,12 +1,29 @@
+import masterRoutes from './master'
+
 const routes = [
+  {
+    path: '/login',
+    component: () => import('@/pages/LoginPage.vue'),
+  },
+
   {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
+
     children: [
-      { path: '', component: () => import('@/pages/IndexPage.vue') },
-      { path: 'second', component: () => import('@/pages/SecondPage.vue') },
+      {
+        path: '',
+        component: () => import('@/pages/SsoPage.vue'),
+      },
+
+      {
+        path: 'second',
+        component: () => import('@/pages/SecondPage.vue'),
+      },
     ],
   },
+
+  ...masterRoutes,
 
   // Always leave this as last one,
   // but you can also remove it

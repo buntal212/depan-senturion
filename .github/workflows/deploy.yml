@@ -7,17 +7,17 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
+      - name: Show environment
+        run: |
+          echo "Runner: $(hostname)"
+          node -v
+          npm -v
 
       - name: Install dependencies
         run: npm ci
@@ -25,37 +25,21 @@ jobs:
       - name: Build Quasar
         run: npm run build
 
-      - name: Setup SSH
+      - name: Deploy to web directory
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+          TARGET="/www/wwwroot/senturion.udumbara.my.id"
 
-          ssh-keyscan -p "${{ secrets.SSH_PORT }}" \
-            "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+          echo "Deploying SENTURION..."
 
-      - name: Prepare server
+          rm -rf "$TARGET/assets"
+          rm -rf "$TARGET/icons"
+          rm -f "$TARGET/index.html"
+          rm -f "$TARGET/favicon.ico"
+
+          cp -a dist/spa/. "$TARGET/"
+
+          echo "Deployment completed."
+
+      - name: Show deployed files
         run: |
-          ssh \
-            -p "${{ secrets.SSH_PORT }}" \
-            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "mkdir -p /www/wwwroot/senturion.udumbara.my.id && \
-             rm -rf /www/wwwroot/senturion.udumbara.my.id/assets && \
-             rm -rf /www/wwwroot/senturion.udumbara.my.id/icons && \
-             rm -f /www/wwwroot/senturion.udumbara.my.id/index.html"
-
-      - name: Upload build
-        run: |
-          scp \
-            -P "${{ secrets.SSH_PORT }}" \
-            -r dist/spa/* \
-            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/www/wwwroot/senturion.udumbara.my.id/"
-
-      - name: Fix permissions
-        run: |
-          ssh \
-            -p "${{ secrets.SSH_PORT }}" \
-            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "chown -R www:www /www/wwwroot/senturion.udumbara.my.id && \
-             find /www/wwwroot/senturion.udumbara.my.id -type d -exec chmod 755 {} \; && \
-             find /www/wwwroot/senturion.udumbara.my.id -type f -exec chmod 644 {} \;"
+          ls -lah /www/wwwroot/senturion.udumbara.my.id

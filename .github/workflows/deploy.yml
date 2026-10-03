@@ -1,0 +1,61 @@
+name: Deploy SENTURION
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Quasar
+        run: npm run build
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          ssh-keyscan -p "${{ secrets.SSH_PORT }}" \
+            "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Prepare server
+        run: |
+          ssh \
+            -p "${{ secrets.SSH_PORT }}" \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "mkdir -p /www/wwwroot/senturion.udumbara.my.id && \
+             rm -rf /www/wwwroot/senturion.udumbara.my.id/assets && \
+             rm -rf /www/wwwroot/senturion.udumbara.my.id/icons && \
+             rm -f /www/wwwroot/senturion.udumbara.my.id/index.html"
+
+      - name: Upload build
+        run: |
+          scp \
+            -P "${{ secrets.SSH_PORT }}" \
+            -r dist/spa/* \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/www/wwwroot/senturion.udumbara.my.id/"
+
+      - name: Fix permissions
+        run: |
+          ssh \
+            -p "${{ secrets.SSH_PORT }}" \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "chown -R www:www /www/wwwroot/senturion.udumbara.my.id && \
+             find /www/wwwroot/senturion.udumbara.my.id -type d -exec chmod 755 {} \; && \
+             find /www/wwwroot/senturion.udumbara.my.id -type f -exec chmod 644 {} \;"
